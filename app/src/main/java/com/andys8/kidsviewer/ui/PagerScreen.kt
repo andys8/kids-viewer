@@ -3,7 +3,10 @@ package com.andys8.kidsviewer.ui
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.runtime.Composable
@@ -11,6 +14,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -36,6 +40,8 @@ private const val AUTO_ADVANCE_ANIMATION_MS = 650
 
 /** Compose the neighbouring pages so their photos are decoded before they scroll into view. */
 private const val PRELOADED_NEIGHBOUR_PAGES = 1
+
+private val PROGRESS_BAR_HEIGHT = 4.dp
 
 @Composable
 fun PagerScreen(items: List<MediaItem>) {
@@ -83,9 +89,10 @@ fun PagerScreen(items: List<MediaItem>) {
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
-    // Point the shared player at whatever page we've settled on.
-    LaunchedEffect(pagerState.settledPage, items) {
-        val item = items.getOrNull(pagerState.settledPage)
+    // Start decoding as soon as the page is on its way in rather than once it settles, so the
+    // first frame is usually ready by the time the swipe finishes.
+    LaunchedEffect(pagerState.currentPage, items) {
+        val item = items.getOrNull(pagerState.currentPage)
         if (item != null && item.isVideo) {
             player.setMediaItem(Media3Item.fromUri(item.uri))
             player.prepare()
@@ -96,21 +103,35 @@ fun PagerScreen(items: List<MediaItem>) {
         }
     }
 
-    HorizontalPager(
-        state = pagerState,
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color.Black),
-        beyondViewportPageCount = PRELOADED_NEIGHBOUR_PAGES,
-        pageSpacing = 0.dp,
-        userScrollEnabled = true,
-        key = { page -> items[page].id }
-    ) { page ->
-        val item = items[page]
-        if (item.isVideo) {
-            VideoPage(player = player, attached = page == pagerState.settledPage)
-        } else {
-            ImagePage(item = item)
+    val settledItem = items.getOrNull(pagerState.settledPage)
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        HorizontalPager(
+            state = pagerState,
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black),
+            beyondViewportPageCount = PRELOADED_NEIGHBOUR_PAGES,
+            pageSpacing = 0.dp,
+            userScrollEnabled = true,
+            key = { page -> items[page].id }
+        ) { page ->
+            val item = items[page]
+            if (item.isVideo) {
+                VideoPage(player = player, attached = page == pagerState.settledPage)
+            } else {
+                ImagePage(item = item)
+            }
+        }
+
+        if (settledItem?.isVideo == true) {
+            VideoProgressBar(
+                player = player,
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .height(PROGRESS_BAR_HEIGHT)
+            )
         }
     }
 

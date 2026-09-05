@@ -12,6 +12,9 @@ import androidx.media3.common.Player
 import androidx.media3.ui.PlayerView
 import com.andys8.kidsviewer.R
 
+/** Dark grey rather than black, so a video that is still decoding reads as a placeholder. */
+val PlaceholderColor = Color(0xFF141414)
+
 /**
  * Renders the shared player's video output. Only the settled page attaches the player: a single
  * player instance means a single hardware decoder, and nothing ever renders a released player.
@@ -19,14 +22,14 @@ import com.andys8.kidsviewer.R
 @Composable
 fun VideoPage(player: Player, attached: Boolean, modifier: Modifier = Modifier) {
     if (!attached) {
-        Box(modifier = modifier.fillMaxSize().background(Color.Black))
+        Box(modifier = modifier.fillMaxSize().background(PlaceholderColor))
         return
     }
 
     AndroidView(
         modifier = modifier
             .fillMaxSize()
-            .background(Color.Black),
+            .background(PlaceholderColor),
         factory = { context ->
             val view = LayoutInflater.from(context)
                 .inflate(R.layout.view_player, null) as PlayerView

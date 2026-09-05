@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?><!--
+    Silhouette used by themed icons on Android 13+. The system tints it a single colour, so the
+    sun and hills are knocked out of the card rather than drawn in their own colours. The play
+    badge is dropped here: it sits on top of the card, so in one flat colour it would merge into
+    it rather than read as a separate button.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <path
+        android:fillColor="#000000"
+        android:fillType="evenOdd"
+        android:pathData="M30,30 L70,30 A6,6 0 0 1 76,36 L76,64 A6,6 0 0 1 70,70 L30,70 A6,6 0 0 1 24,64 L24,36 A6,6 0 0 1 30,30 Z M37,43 m-6,0 a6,6 0 1,0 12,0 a6,6 0 1,0 -12,0 M29,64 L44,47 L55,59 L64,49 L73,64 Z" />
+</vector>

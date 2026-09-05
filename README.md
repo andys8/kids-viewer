@@ -1,16 +1,20 @@
-# Kids Viewer
+# Kids Photo Viewer
 
-A dead-simple, toddler-proof photo & video viewer for Android. It shows the
-photos and videos from your phone's camera roll full-screen, automatically
-advances every 4 seconds, autoplays videos, and locks itself down so kids
-can't accidentally swipe out, edit, or delete anything.
+**A safe, toddler-proof photo and video viewer for Android.**
+
+Hand your phone to a small child without worrying. It shows the photos and
+videos from your camera roll full-screen as a slideshow, and locks itself
+down so little fingers can't swipe out of it, open other apps, or edit or
+delete your pictures.
 
 ## Features
 
 - Shows only photos/videos from the standard camera folder (no screenshots
   or downloads), most recent first.
 - Auto-advances every 3 seconds; swipe left/right to navigate manually.
-- Videos autoplay and loop until you swipe to the next item.
+- Videos autoplay, loop, and show a slim progress bar at the bottom.
+- Plays high-frame-rate 4K footage smoothly, with display frame-rate
+  matching and HDR output.
 - Keeps the screen on, so the phone never locks while the app is open.
 - Full-screen immersive mode — system bars are hidden.
 - Self-pinning kiosk mode (Android Screen Pinning) so the app locks itself
@@ -45,7 +49,7 @@ the app. If your device doesn't allow this automatically, the app will show
 instructions to turn it on manually:
 
 **Settings → Security → Advanced → Screen pinning → On**, then open the
-app-switcher (square button) and tap the pin icon on Kids Viewer.
+app-switcher (square button) and tap the pin icon on Kids Photo Viewer.
 
 Note: without enrolling the device as a managed ("kiosk") device — which
 requires a computer/ADB and is out of scope here — Android does not allow

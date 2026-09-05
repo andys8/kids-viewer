@@ -1,12 +1,18 @@
-<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?><!--
+    surface_type must stay "surface_view": it is the only surface type that gets accurate frame
+    timing, display frame-rate matching (Surface.setFrameRate) and HDR output, all of which
+    high-frame-rate 4K recordings depend on. A texture_view copies every frame through the app's
+    own render thread instead, which visibly stutters at 4K60.
+-->
 <androidx.media3.ui.PlayerView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/player_view"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@android:color/black"
+    android:background="@color/placeholder"
     android:keepScreenOn="true"
-    app:surface_type="texture_view"
+    app:surface_type="surface_view"
     app:use_controller="false"
     app:resize_mode="fit"
-    app:show_buffering="never" />
+    app:show_buffering="never"
+    app:shutter_background_color="@color/placeholder" />
