@@ -11,15 +11,16 @@ delete your pictures.
 
 - Shows only photos/videos from the standard camera folder (no screenshots
   or downloads), most recent first.
-- Two modes, switched by holding **three fingers** on the screen for about
-  a second and a half. There is no button or menu, so a toddler can't
-  reach it; a brief label confirms the mode you switched to.
-  - **Slideshow** (default) — photos show for 3 seconds and videos play
-    through once, then it moves on by itself. Swiping is switched off, so
-    there is nothing a child can change. Holding one finger down keeps the
-    current photo or video up for as long as you like.
-  - **Swipe only** — swipe left/right to move; nothing advances on its own
-    and videos loop, so a photo stays up until someone swipes.
+- Two modes, switched by **holding the top-left corner for 2 seconds**.
+  There is no button or menu, so a toddler can't reach it; the mode's name
+  fades in partway through the hold, so you can see it registering, and
+  stays briefly to confirm the switch.
+  - **Swipe only** (default) — swipe left/right to move; nothing advances
+    on its own and videos loop, so a photo stays up until someone swipes.
+  - **Slideshow** — photos show for 3 seconds and videos play through once,
+    then it moves on by itself. Swiping is switched off, so there is
+    nothing a child can change. Holding one finger down keeps the current
+    photo or video up for as long as you like.
 - Plays high-frame-rate 4K footage smoothly, with display frame-rate
   matching and HDR output.
 - Keeps the screen on, so the phone never locks while the app is open.

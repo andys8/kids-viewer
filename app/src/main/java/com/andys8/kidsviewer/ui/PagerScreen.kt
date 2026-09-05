@@ -51,10 +51,14 @@ private const val PRELOADED_NEIGHBOUR_PAGES = 1
 /** No page is waiting on a finger to lift. */
 private const val NO_PAGE = -1
 
-/** Deliberately awkward for small hands: three fingers, held. */
-private const val MODE_SWITCH_POINTERS = 3
-private const val MODE_SWITCH_HOLD_MS = 1500L
+/** Hold the top-left corner this long to switch modes, with the label appearing partway. */
+private const val SWITCH_HOLD_MS = 2000L
+private const val SWITCH_FEEDBACK_MS = 600L
 private const val MODE_INDICATOR_MS = 1400L
+
+/** The corner that switches modes, as a fraction of the screen. */
+private const val CORNER_WIDTH_FRACTION = 0.25f
+private const val CORNER_HEIGHT_FRACTION = 0.15f
 
 private val AdvanceAnimation = tween<Float>(
     durationMillis = AUTO_ADVANCE_ANIMATION_MS,
@@ -112,26 +116,40 @@ fun PagerScreen(items: List<MediaItem>) {
     val touching = pointersDown > 0
     var pageAwaitingRelease by remember { mutableStateOf(NO_PAGE) }
 
-    // Slideshow moves on by itself; swipe-only waits for a swipe and loops the current video.
-    var slideshow by rememberSaveable { mutableStateOf(true) }
+    // Swipe-only to begin with: nothing moves until somebody asks it to.
+    var slideshow by rememberSaveable { mutableStateOf(false) }
+    var cornerHeld by remember { mutableStateOf(false) }
+    var switchArmed by remember { mutableStateOf(false) }
     var switchCount by remember { mutableIntStateOf(0) }
-    var indicatorVisible by remember { mutableStateOf(false) }
+    var confirmVisible by remember { mutableStateOf(false) }
 
-    // Three fingers held together: awkward enough that a toddler will not find it by accident,
-    // and nothing is drawn on screen that could be pressed instead.
-    val switchGestureHeld = pointersDown >= MODE_SWITCH_POINTERS
-    LaunchedEffect(switchGestureHeld) {
-        if (!switchGestureHeld) return@LaunchedEffect
-        delay(MODE_SWITCH_HOLD_MS)
+    /*
+     * Switching modes is one finger held in the top-left corner. A single touch is the point:
+     * phones routinely claim multi-finger gestures for themselves (screenshots, accessibility
+     * zoom), so an app cannot count on ever seeing the third finger — which is the likeliest
+     * reason a three-finger hold did nothing here.
+     *
+     * The label fades in partway through the hold, before the switch commits, so it is obvious
+     * the gesture is registering rather than being ignored.
+     */
+    LaunchedEffect(cornerHeld) {
+        if (!cornerHeld) {
+            switchArmed = false
+            return@LaunchedEffect
+        }
+        delay(SWITCH_FEEDBACK_MS)
+        switchArmed = true
+        delay(SWITCH_HOLD_MS - SWITCH_FEEDBACK_MS)
         slideshow = !slideshow
+        switchArmed = false
         switchCount++
     }
 
     LaunchedEffect(switchCount) {
         if (switchCount == 0) return@LaunchedEffect
-        indicatorVisible = true
+        confirmVisible = true
         delay(MODE_INDICATOR_MS)
-        indicatorVisible = false
+        confirmVisible = false
     }
 
     LaunchedEffect(slideshow) {
@@ -224,7 +242,12 @@ fun PagerScreen(items: List<MediaItem>) {
                 awaitPointerEventScope {
                     while (true) {
                         val event = awaitPointerEvent(PointerEventPass.Initial)
-                        pointersDown = event.changes.count { it.pressed }
+                        val pressed = event.changes.filter { it.pressed }
+                        pointersDown = pressed.size
+                        cornerHeld = pressed.any { touch ->
+                            touch.position.x < size.width * CORNER_WIDTH_FRACTION &&
+                                touch.position.y < size.height * CORNER_HEIGHT_FRACTION
+                        }
                     }
                 }
             },
@@ -253,11 +276,14 @@ fun PagerScreen(items: List<MediaItem>) {
             }
         }
 
+        // While arming, name the mode the hold is about to switch to, so the text does not
+        // change at the moment it commits.
+        val shownMode = if (switchArmed) !slideshow else slideshow
         ModeIndicator(
             label = stringResource(
-                if (slideshow) R.string.mode_slideshow else R.string.mode_swipe_only
+                if (shownMode) R.string.mode_slideshow else R.string.mode_swipe_only
             ),
-            visible = indicatorVisible
+            visible = switchArmed || confirmVisible
         )
     }
 
