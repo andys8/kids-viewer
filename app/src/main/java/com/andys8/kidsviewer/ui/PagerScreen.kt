@@ -9,11 +9,15 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
@@ -37,6 +41,9 @@ private const val AUTO_ADVANCE_ANIMATION_MS = 650
 
 /** Compose the neighbouring pages so their photos are decoded before they scroll into view. */
 private const val PRELOADED_NEIGHBOUR_PAGES = 1
+
+/** No page is waiting on a finger to lift. */
+private const val NO_PAGE = -1
 
 private val AdvanceAnimation = tween<Float>(
     durationMillis = AUTO_ADVANCE_ANIMATION_MS,
@@ -86,6 +93,20 @@ fun PagerScreen(items: List<MediaItem>) {
     // that reached READY first, which rules out a stale report from the clip just swiped away.
     val playedMediaId = remember { mutableStateOf<String?>(null) }
 
+    // Holding a finger down keeps the current item on screen. A video that runs out while held
+    // waits rather than being skipped, and moves on once the finger lifts. The page it ended on
+    // is remembered, not just the fact that it ended, so that lifting out of a swipe -- which
+    // has already moved on -- doesn't advance a second time.
+    var touching by remember { mutableStateOf(false) }
+    var pageAwaitingRelease by remember { mutableStateOf(NO_PAGE) }
+
+    LaunchedEffect(touching) {
+        if (touching) return@LaunchedEffect
+        val pending = pageAwaitingRelease
+        pageAwaitingRelease = NO_PAGE
+        if (pending == pagerState.currentPage) advanceToNext()
+    }
+
     DisposableEffect(player, items) {
         val listener = object : Player.Listener {
             // A finished video moves on just like a photo does, so the slideshow keeps flowing
@@ -101,6 +122,8 @@ fun PagerScreen(items: List<MediaItem>) {
                 if (items.size <= 1) {
                     player.seekTo(0L)
                     player.play()
+                } else if (touching) {
+                    pageAwaitingRelease = pagerState.currentPage
                 } else {
                     advanceToNext()
                 }
@@ -153,7 +176,18 @@ fun PagerScreen(items: List<MediaItem>) {
         state = pagerState,
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.Black),
+            .background(Color.Black)
+            // Watch for a finger on the screen without taking the touch: reading events on the
+            // Initial pass and never consuming them leaves the pager's own swipe handling
+            // completely untouched.
+            .pointerInput(Unit) {
+                awaitPointerEventScope {
+                    while (true) {
+                        val event = awaitPointerEvent(PointerEventPass.Initial)
+                        touching = event.changes.any { it.pressed }
+                    }
+                }
+            },
         beyondViewportPageCount = PRELOADED_NEIGHBOUR_PAGES,
         pageSpacing = 0.dp,
         userScrollEnabled = true,
@@ -172,7 +206,10 @@ fun PagerScreen(items: List<MediaItem>) {
     }
 
     // Photos advance on a timer. Videos have no timer: they advance when they finish playing.
-    LaunchedEffect(pagerState.settledPage, items) {
+    // Keying on the touch stops the timer while a finger is down and starts a fresh one when it
+    // lifts, so holding keeps the photo up for as long as you like.
+    LaunchedEffect(pagerState.settledPage, items, touching) {
+        if (touching) return@LaunchedEffect
         if (items.size <= 1) return@LaunchedEffect
         val current = pagerState.settledPage
         if (items.getOrNull(current)?.isVideo != false) return@LaunchedEffect

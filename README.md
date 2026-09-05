@@ -13,6 +13,8 @@ delete your pictures.
   or downloads), most recent first.
 - Runs as a continuous slideshow: photos show for 3 seconds, videos play
   through once and then move on. Swipe left/right to navigate manually.
+- Hold a finger on the screen to keep the current photo or video up; the
+  slideshow carries on when you let go.
 - Plays high-frame-rate 4K footage smoothly, with display frame-rate
   matching and HDR output.
 - Keeps the screen on, so the phone never locks while the app is open.
