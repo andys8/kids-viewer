@@ -11,8 +11,8 @@ delete your pictures.
 
 - Shows only photos/videos from the standard camera folder (no screenshots
   or downloads), most recent first.
-- Auto-advances every 3 seconds; swipe left/right to navigate manually.
-- Videos autoplay, loop, and show a slim progress bar at the bottom.
+- Runs as a continuous slideshow: photos show for 3 seconds, videos play
+  through once and then move on. Swipe left/right to navigate manually.
 - Plays high-frame-rate 4K footage smoothly, with display frame-rate
   matching and HDR output.
 - Keeps the screen on, so the phone never locks while the app is open.

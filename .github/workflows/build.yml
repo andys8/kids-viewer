@@ -46,7 +46,7 @@ jobs:
           cp "$apk" "kids-viewer-${stamp}.apk"
           {
             echo "tag=build-${stamp}"
-            echo "name=Kids Viewer $(date -u +'%Y-%m-%d %H:%M UTC')"
+            echo "name=Kids Photo Viewer $(date -u +'%Y-%m-%d %H:%M UTC')"
             echo "apk=kids-viewer-${stamp}.apk"
           } >> "$GITHUB_OUTPUT"
 

@@ -3,10 +3,7 @@ package com.andys8.kidsviewer.ui
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.runtime.Composable
@@ -14,7 +11,6 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -41,7 +37,10 @@ private const val AUTO_ADVANCE_ANIMATION_MS = 650
 /** Compose the neighbouring pages so their photos are decoded before they scroll into view. */
 private const val PRELOADED_NEIGHBOUR_PAGES = 1
 
-private val PROGRESS_BAR_HEIGHT = 4.dp
+private val AdvanceAnimation = tween<Float>(
+    durationMillis = AUTO_ADVANCE_ANIMATION_MS,
+    easing = FastOutSlowInEasing
+)
 
 @Composable
 fun PagerScreen(items: List<MediaItem>) {
@@ -54,7 +53,7 @@ fun PagerScreen(items: List<MediaItem>) {
     // video decoders and lets a view outlive the player it is drawing.
     val player = remember {
         ExoPlayer.Builder(context).build().apply {
-            repeatMode = Player.REPEAT_MODE_ONE
+            repeatMode = Player.REPEAT_MODE_OFF
             playWhenReady = true
         }
     }
@@ -63,13 +62,28 @@ fun PagerScreen(items: List<MediaItem>) {
         onDispose { player.release() }
     }
 
-    // Skip past anything that can't be decoded instead of sitting on a black screen.
+    val advanceToNext: () -> Unit = {
+        val next = (pagerState.settledPage + 1) % items.size
+        scope.launch { pagerState.animateScrollToPage(page = next, animationSpec = AdvanceAnimation) }
+    }
+
     DisposableEffect(player, items) {
         val listener = object : Player.Listener {
+            // A finished video moves on just like a photo does, so the slideshow keeps flowing
+            // instead of repeating the same clip. A lone video has nowhere to go, so it replays.
+            override fun onPlaybackStateChanged(playbackState: Int) {
+                if (playbackState != Player.STATE_ENDED) return
+                if (items.size <= 1) {
+                    player.seekTo(0L)
+                    player.play()
+                } else {
+                    advanceToNext()
+                }
+            }
+
+            // Skip past anything that can't be decoded instead of sitting on a placeholder.
             override fun onPlayerError(error: PlaybackException) {
-                if (items.size <= 1) return
-                val next = (pagerState.settledPage + 1) % items.size
-                scope.launch { pagerState.animateScrollToPage(next) }
+                if (items.size > 1) advanceToNext()
             }
         }
         player.addListener(listener)
@@ -103,39 +117,25 @@ fun PagerScreen(items: List<MediaItem>) {
         }
     }
 
-    val settledItem = items.getOrNull(pagerState.settledPage)
-
-    Box(modifier = Modifier.fillMaxSize()) {
-        HorizontalPager(
-            state = pagerState,
-            modifier = Modifier
-                .fillMaxSize()
-                .background(Color.Black),
-            beyondViewportPageCount = PRELOADED_NEIGHBOUR_PAGES,
-            pageSpacing = 0.dp,
-            userScrollEnabled = true,
-            key = { page -> items[page].id }
-        ) { page ->
-            val item = items[page]
-            if (item.isVideo) {
-                VideoPage(player = player, attached = page == pagerState.settledPage)
-            } else {
-                ImagePage(item = item)
-            }
-        }
-
-        if (settledItem?.isVideo == true) {
-            VideoProgressBar(
-                player = player,
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .fillMaxWidth()
-                    .height(PROGRESS_BAR_HEIGHT)
-            )
+    HorizontalPager(
+        state = pagerState,
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black),
+        beyondViewportPageCount = PRELOADED_NEIGHBOUR_PAGES,
+        pageSpacing = 0.dp,
+        userScrollEnabled = true,
+        key = { page -> items[page].id }
+    ) { page ->
+        val item = items[page]
+        if (item.isVideo) {
+            VideoPage(player = player, attached = page == pagerState.settledPage)
+        } else {
+            ImagePage(item = item)
         }
     }
 
-    // Photos advance on a timer; videos stay put and loop until swiped away.
+    // Photos advance on a timer. Videos have no timer: they advance when they finish playing.
     LaunchedEffect(pagerState.settledPage, items) {
         if (items.size <= 1) return@LaunchedEffect
         val current = pagerState.settledPage
@@ -143,10 +143,7 @@ fun PagerScreen(items: List<MediaItem>) {
         delay(AUTO_ADVANCE_DELAY_MS)
         pagerState.animateScrollToPage(
             page = (current + 1) % items.size,
-            animationSpec = tween(
-                durationMillis = AUTO_ADVANCE_ANIMATION_MS,
-                easing = FastOutSlowInEasing
-            )
+            animationSpec = AdvanceAnimation
         )
     }
 }
