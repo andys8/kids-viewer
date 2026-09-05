@@ -3,8 +3,12 @@ package com.andys8.kidsviewer.ui
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.runtime.Composable
@@ -35,6 +39,7 @@ import com.andys8.kidsviewer.R
 import com.andys8.kidsviewer.data.MediaItem
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import androidx.media3.common.MediaItem as Media3Item
 
 private const val AUTO_ADVANCE_DELAY_MS = 3000L
@@ -56,9 +61,8 @@ private const val SWITCH_HOLD_MS = 2000L
 private const val SWITCH_FEEDBACK_MS = 600L
 private const val MODE_INDICATOR_MS = 1400L
 
-/** The corner that switches modes, as a fraction of the screen. */
-private const val CORNER_WIDTH_FRACTION = 0.25f
-private const val CORNER_HEIGHT_FRACTION = 0.15f
+/** Generous enough to hit deliberately, small enough to stay out of the way. */
+private val SWITCH_TARGET_SIZE = 140.dp
 
 private val AdvanceAnimation = tween<Float>(
     durationMillis = AUTO_ADVANCE_ANIMATION_MS,
@@ -118,48 +122,20 @@ fun PagerScreen(items: List<MediaItem>) {
 
     // Swipe-only to begin with: nothing moves until somebody asks it to.
     var slideshow by rememberSaveable { mutableStateOf(false) }
-    var cornerHeld by remember { mutableStateOf(false) }
-    var switchArmed by remember { mutableStateOf(false) }
-    var switchUsed by remember { mutableStateOf(false) }
-    var switchCount by remember { mutableIntStateOf(0) }
-    var confirmVisible by remember { mutableStateOf(false) }
-
-    // One switch per press, however long the press lasts. Without this, a held finger that
-    // drifts across the edge of the corner re-arms the gesture and switches straight back --
-    // which is why holding announced one mode and then the other.
-    LaunchedEffect(pointersDown == 0) {
-        if (pointersDown == 0) switchUsed = false
-    }
 
     /*
-     * Switching modes is one finger held in the top-left corner. A single touch is the point:
-     * phones routinely claim multi-finger gestures for themselves (screenshots, accessibility
-     * zoom), so an app cannot count on ever seeing the third finger — which is the likeliest
-     * reason a three-finger hold did nothing here.
-     *
-     * The label fades in partway through the hold, before the switch commits, so it is obvious
-     * the gesture is registering rather than being ignored.
+     * What the label says is decided once, when the hold arms, and never recomputed. Deriving it
+     * from the current mode is what made it contradict itself: any later evaluation could render
+     * different text than the one the gesture had announced.
      */
-    LaunchedEffect(cornerHeld, switchUsed) {
-        if (!cornerHeld || switchUsed) {
-            switchArmed = false
-            return@LaunchedEffect
-        }
-        delay(SWITCH_FEEDBACK_MS)
-        switchArmed = true
-        delay(SWITCH_HOLD_MS - SWITCH_FEEDBACK_MS)
-        // Settle everything together, so the label never blinks between armed and confirmed.
-        slideshow = !slideshow
-        switchUsed = true
-        confirmVisible = true
-        switchArmed = false
-        switchCount++
-    }
+    var labelSaysSlideshow by remember { mutableStateOf(false) }
+    var labelVisible by remember { mutableStateOf(false) }
+    var switchCount by remember { mutableIntStateOf(0) }
 
     LaunchedEffect(switchCount) {
         if (switchCount == 0) return@LaunchedEffect
         delay(MODE_INDICATOR_MS)
-        confirmVisible = false
+        labelVisible = false
     }
 
     LaunchedEffect(slideshow) {
@@ -252,12 +228,7 @@ fun PagerScreen(items: List<MediaItem>) {
                 awaitPointerEventScope {
                     while (true) {
                         val event = awaitPointerEvent(PointerEventPass.Initial)
-                        val pressed = event.changes.filter { it.pressed }
-                        pointersDown = pressed.size
-                        cornerHeld = pressed.any { touch ->
-                            touch.position.x < size.width * CORNER_WIDTH_FRACTION &&
-                                touch.position.y < size.height * CORNER_HEIGHT_FRACTION
-                        }
+                        pointersDown = event.changes.count { it.pressed }
                     }
                 }
             },
@@ -286,14 +257,53 @@ fun PagerScreen(items: List<MediaItem>) {
             }
         }
 
-        // While arming, name the mode the hold is about to switch to, so the text does not
-        // change at the moment it commits.
-        val shownMode = if (switchArmed) !slideshow else slideshow
+        /*
+         * The mode switch: hold this invisible corner target. The whole gesture lives in one
+         * coroutine that begins on touch-down and ends when the finger lifts, so exactly one
+         * switch per press falls out of the structure -- there is no state to get out of step
+         * and no boundary for a drifting finger to cross, because the target itself is the hit
+         * area. Nothing is consumed, so a swipe starting here still swipes.
+         */
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .size(SWITCH_TARGET_SIZE)
+                .pointerInput(Unit) {
+                    awaitEachGesture {
+                        awaitFirstDown(requireUnconsumed = false)
+
+                        // Nothing happens until the hold is clearly deliberate.
+                        val liftedEarly = withTimeoutOrNull(SWITCH_FEEDBACK_MS) {
+                            waitForUpOrCancellation()
+                            true
+                        }
+                        if (liftedEarly != null) return@awaitEachGesture
+
+                        // Announce the mode being switched to, and keep that text for good.
+                        labelSaysSlideshow = !slideshow
+                        labelVisible = true
+
+                        val liftedBeforeSwitch =
+                            withTimeoutOrNull(SWITCH_HOLD_MS - SWITCH_FEEDBACK_MS) {
+                                waitForUpOrCancellation()
+                                true
+                            }
+                        if (liftedBeforeSwitch != null) {
+                            labelVisible = false
+                            return@awaitEachGesture
+                        }
+
+                        slideshow = !slideshow
+                        switchCount++
+                    }
+                }
+        )
+
         ModeIndicator(
             label = stringResource(
-                if (shownMode) R.string.mode_slideshow else R.string.mode_swipe_only
+                if (labelSaysSlideshow) R.string.mode_slideshow else R.string.mode_swipe_only
             ),
-            visible = switchArmed || confirmVisible
+            visible = labelVisible
         )
     }
 
