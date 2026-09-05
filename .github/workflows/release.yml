@@ -80,6 +80,13 @@ jobs:
           BUILD_STAMP: ${{ steps.version.outputs.name }}
         run: ./gradlew lintRelease --stacktrace
 
+      # The Gradle output only names the first failure, which hides the rest behind a re-run.
+      - name: Show the full lint report
+        if: failure()
+        run: |
+          report=app/build/reports/lint-results-release.txt
+          [ -f "$report" ] && cat "$report" || echo "No lint report was produced."
+
       - name: Run unit tests
         env:
           BUILD_NUMBER: ${{ steps.version.outputs.code }}

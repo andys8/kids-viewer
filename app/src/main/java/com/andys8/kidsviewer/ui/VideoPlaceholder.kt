@@ -4,6 +4,7 @@ import android.content.Context
 import android.os.Build
 import android.util.LruCache
 import android.util.Size
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -112,11 +113,18 @@ private object VideoThumbnails {
         cache.get(item.id)?.let { return it }
 
         return withContext(Dispatchers.IO) {
-            runCatching {
-                context.contentResolver
-                    .loadThumbnail(item.uri, Size(THUMBNAIL_PX, THUMBNAIL_PX), null)
-                    .asImageBitmap()
-            }.getOrNull()?.also { cache.put(item.id, it) }
+            runCatching { loadThumbnail(context, item) }
+                .getOrNull()?.also { cache.put(item.id, it) }
         }
     }
+
+    /**
+     * Split out so the version guard above is one the compiler and lint can both see: inside the
+     * coroutine lambda the check in [load] is no longer visible to them, only to the runtime.
+     */
+    @RequiresApi(Build.VERSION_CODES.Q)
+    private fun loadThumbnail(context: Context, item: MediaItem): ImageBitmap =
+        context.contentResolver
+            .loadThumbnail(item.uri, Size(THUMBNAIL_PX, THUMBNAIL_PX), null)
+            .asImageBitmap()
 }

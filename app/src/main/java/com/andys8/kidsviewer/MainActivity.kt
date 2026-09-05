@@ -141,6 +141,10 @@ class MainActivity : ComponentActivity() {
      * all, hiding the system bars never removes it and rotating only moves it.
      */
     private fun drawBehindDisplayCutout() {
+        // The cutout layout mode arrived in API 28, and so did cutouts. Touching the field on an
+        // older device throws NoSuchFieldError, so there is nothing to do and nothing to miss.
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) return
+
         val mode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
         } else {
