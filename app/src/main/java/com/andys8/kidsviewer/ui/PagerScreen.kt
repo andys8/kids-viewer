@@ -44,10 +44,12 @@ fun PagerScreen(items: List<MediaItem>) {
         }
     }
 
-    LaunchedEffect(pagerState.currentPage, items.size) {
+    LaunchedEffect(pagerState.settledPage, items.size) {
         if (items.size <= 1) return@LaunchedEffect
+        val current = pagerState.settledPage
+        if (items[current].isVideo) return@LaunchedEffect
         delay(AUTO_ADVANCE_DELAY_MS)
-        val next = (pagerState.currentPage + 1) % items.size
+        val next = (current + 1) % items.size
         pagerState.animateScrollToPage(next)
     }
 }
