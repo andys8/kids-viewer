@@ -39,7 +39,21 @@ go back to a previous one.
 5. Open the app and grant photo/video access when prompted.
 
 This is a **debug-signed build**, which is fine for installing on your own
-device but is not suitable for Play Store distribution.
+device. Signed release builds are produced by the separate
+[Play Store release](.github/workflows/release.yml) workflow.
+
+## Publishing to the Play Store
+
+`.github/workflows/release.yml` builds a signed app bundle and APK and uploads
+the bundle to Google Play. It is a manual trigger: **Actions → Play Store
+release → Run workflow**, pick a track.
+
+The one-time setup — signing key, Play Console app, store listing, policy
+declarations, service account — is written up in
+[docs/PLAY_STORE.md](docs/PLAY_STORE.md). The short version: sharing the app
+through Play's **internal testing** track gets you real installs and automatic
+updates for up to 100 people without the 12-tester/14-day hurdle that
+production access can require.
 
 ## Screen pinning / kiosk lock-down
 
