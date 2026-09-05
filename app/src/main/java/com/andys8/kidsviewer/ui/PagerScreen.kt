@@ -24,7 +24,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -53,12 +52,8 @@ private const val AUTO_ADVANCE_ANIMATION_MS = 650
 /** Compose the neighbouring pages so their photos are decoded before they scroll into view. */
 private const val PRELOADED_NEIGHBOUR_PAGES = 1
 
-/** No page is waiting on a finger to lift. */
-private const val NO_PAGE = -1
-
-/** Hold the top-left corner this long to switch modes, with the label appearing partway. */
+/** Hold the top-left corner this long to switch modes. */
 private const val SWITCH_HOLD_MS = 2000L
-private const val SWITCH_FEEDBACK_MS = 600L
 private const val MODE_INDICATOR_MS = 1400L
 
 /** Generous enough to hit deliberately, small enough to stay out of the way. */
@@ -112,21 +107,13 @@ fun PagerScreen(items: List<MediaItem>) {
     // that reached READY first, which rules out a stale report from the clip just swiped away.
     val playedMediaId = remember { mutableStateOf<String?>(null) }
 
-    // Holding a finger down keeps the current item on screen. A video that runs out while held
-    // waits rather than being skipped, and moves on once the finger lifts. The page it ended on
-    // is remembered, not just the fact that it ended, so that lifting out of a swipe -- which
-    // has already moved on -- doesn't advance a second time.
-    var pointersDown by remember { mutableIntStateOf(0) }
-    val touching = pointersDown > 0
-    var pageAwaitingRelease by remember { mutableStateOf(NO_PAGE) }
-
     // Swipe-only to begin with: nothing moves until somebody asks it to.
     var slideshow by rememberSaveable { mutableStateOf(false) }
 
     /*
-     * What the label says is decided once, when the hold arms, and never recomputed. Deriving it
-     * from the current mode is what made it contradict itself: any later evaluation could render
-     * different text than the one the gesture had announced.
+     * What the label says is written once, by the switch that caused it, and never recomputed.
+     * Deriving it from the current mode is what made it contradict itself: any later evaluation
+     * could render different text than the one the gesture had announced.
      */
     var labelSaysSlideshow by remember { mutableStateOf(false) }
     var labelVisible by remember { mutableStateOf(false) }
@@ -140,13 +127,6 @@ fun PagerScreen(items: List<MediaItem>) {
 
     LaunchedEffect(slideshow) {
         player.repeatMode = if (slideshow) Player.REPEAT_MODE_OFF else Player.REPEAT_MODE_ONE
-    }
-
-    LaunchedEffect(touching) {
-        if (touching) return@LaunchedEffect
-        val pending = pageAwaitingRelease
-        pageAwaitingRelease = NO_PAGE
-        if (pending == pagerState.currentPage) advanceToNext()
     }
 
     DisposableEffect(player, items) {
@@ -165,10 +145,6 @@ fun PagerScreen(items: List<MediaItem>) {
                 if (items.size <= 1) {
                     player.seekTo(0L)
                     player.play()
-                } else if (pointersDown > 0) {
-                    // Read the live count, not a captured snapshot: this listener outlives the
-                    // composition that created it, so anything captured by value would be stale.
-                    pageAwaitingRelease = pagerState.currentPage
                 } else {
                     advanceToNext()
                 }
@@ -220,18 +196,7 @@ fun PagerScreen(items: List<MediaItem>) {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.Black)
-            // Watch the fingers on the screen without taking the touch: reading events on the
-            // Initial pass and never consuming them leaves the pager's own swipe handling
-            // completely untouched.
-            .pointerInput(Unit) {
-                awaitPointerEventScope {
-                    while (true) {
-                        val event = awaitPointerEvent(PointerEventPass.Initial)
-                        pointersDown = event.changes.count { it.pressed }
-                    }
-                }
-            },
+            .background(Color.Black),
         contentAlignment = Alignment.Center
     ) {
         HorizontalPager(
@@ -272,28 +237,17 @@ fun PagerScreen(items: List<MediaItem>) {
                     awaitEachGesture {
                         awaitFirstDown(requireUnconsumed = false)
 
-                        // Nothing happens until the hold is clearly deliberate.
-                        val liftedEarly = withTimeoutOrNull(SWITCH_FEEDBACK_MS) {
+                        val liftedEarly = withTimeoutOrNull(SWITCH_HOLD_MS) {
                             waitForUpOrCancellation()
                             true
                         }
                         if (liftedEarly != null) return@awaitEachGesture
 
-                        // Announce the mode being switched to, and keep that text for good.
-                        labelSaysSlideshow = !slideshow
-                        labelVisible = true
-
-                        val liftedBeforeSwitch =
-                            withTimeoutOrNull(SWITCH_HOLD_MS - SWITCH_FEEDBACK_MS) {
-                                waitForUpOrCancellation()
-                                true
-                            }
-                        if (liftedBeforeSwitch != null) {
-                            labelVisible = false
-                            return@awaitEachGesture
-                        }
-
+                        // The label announces a mode that is already in effect, never one that
+                        // is still being waited for.
                         slideshow = !slideshow
+                        labelSaysSlideshow = slideshow
+                        labelVisible = true
                         switchCount++
                     }
                 }
@@ -308,11 +262,9 @@ fun PagerScreen(items: List<MediaItem>) {
     }
 
     // Photos advance on a timer. Videos have no timer: they advance when they finish playing.
-    // Keying on the touch stops the timer while a finger is down and starts a fresh one when it
-    // lifts, so holding keeps the photo up for as long as you like.
-    LaunchedEffect(pagerState.settledPage, items, touching, slideshow) {
+    // Nothing a finger does interrupts either: a running slideshow is not pausable.
+    LaunchedEffect(pagerState.settledPage, items, slideshow) {
         if (!slideshow) return@LaunchedEffect
-        if (touching) return@LaunchedEffect
         if (items.size <= 1) return@LaunchedEffect
         val current = pagerState.settledPage
         if (items.getOrNull(current)?.isVideo != false) return@LaunchedEffect
