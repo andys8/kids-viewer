@@ -20,12 +20,18 @@ import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.lifecycleScope
 import com.andys8.kidsviewer.data.MediaAccess
 import com.andys8.kidsviewer.data.MediaRepository
 import com.andys8.kidsviewer.ui.KidsViewerApp
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 private const val PREFS_NAME = "kids_viewer"
 private const val KEY_PERMISSION_ASKED = "permission_asked"
+
+/** Long enough for pinning (and any confirmation dialog) to actually take effect. */
+private const val PINNING_CHECK_DELAY_MS = 2500L
 
 class MainActivity : ComponentActivity() {
 
@@ -40,6 +46,7 @@ class MainActivity : ComponentActivity() {
 
     private val showPinningHelp = mutableStateOf(false)
     private val crashReport = mutableStateOf<String?>(null)
+    private var pinningOutcomeChecked = false
 
     private val permissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
@@ -119,17 +126,35 @@ class MainActivity : ComponentActivity() {
             WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
     }
 
+    /**
+     * Screen pinning is a bonus, never a requirement: the viewer has to keep working on a device
+     * that refuses it, whether because the feature is absent, switched off in Settings, or
+     * restricted by policy.
+     */
     private fun startKioskPinning() {
         val activityManager = getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
         if (activityManager.lockTaskModeState != ActivityManager.LOCK_TASK_MODE_NONE) {
             return
         }
+
         try {
             startLockTask()
-        } catch (e: IllegalArgumentException) {
-            showPinningHelp.value = true
-        } catch (e: IllegalStateException) {
-            showPinningHelp.value = true
+        } catch (e: RuntimeException) {
+            // SecurityException, IllegalArgumentException and IllegalStateException have all been
+            // seen here across OEM builds. None of them may take the app down.
+        }
+
+        if (pinningOutcomeChecked) return
+        pinningOutcomeChecked = true
+
+        // The platform may also decline silently, without failing, so the request itself proves
+        // nothing. Pinning can take a moment to engage (and may show a confirmation dialog), so
+        // judge it by the actual lock-task state shortly afterwards instead.
+        lifecycleScope.launch {
+            delay(PINNING_CHECK_DELAY_MS)
+            if (activityManager.lockTaskModeState == ActivityManager.LOCK_TASK_MODE_NONE) {
+                showPinningHelp.value = true
+            }
         }
     }
 
