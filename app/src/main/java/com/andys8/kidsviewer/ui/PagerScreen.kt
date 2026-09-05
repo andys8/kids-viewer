@@ -9,6 +9,7 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
@@ -81,13 +82,22 @@ fun PagerScreen(items: List<MediaItem>) {
             player.currentMediaItem?.mediaId == current.id.toString()
     }
 
+    // The id of the video actually seen playing. An end report is only believable for a video
+    // that reached READY first, which rules out a stale report from the clip just swiped away.
+    val playedMediaId = remember { mutableStateOf<String?>(null) }
+
     DisposableEffect(player, items) {
         val listener = object : Player.Listener {
             // A finished video moves on just like a photo does, so the slideshow keeps flowing
             // instead of repeating the same clip. A lone video has nowhere to go, so it replays.
             override fun onPlaybackStateChanged(playbackState: Int) {
+                if (playbackState == Player.STATE_READY) {
+                    playedMediaId.value = player.currentMediaItem?.mediaId
+                    return
+                }
                 if (playbackState != Player.STATE_ENDED) return
                 if (!currentVideoIsPlaying()) return
+                if (playedMediaId.value != player.currentMediaItem?.mediaId) return
                 if (items.size <= 1) {
                     player.seekTo(0L)
                     player.play()

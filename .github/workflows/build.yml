@@ -34,21 +34,31 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
-      - name: Build debug APK
-        run: ./gradlew assembleDebug --stacktrace
-
+      # Named before the build, so the stamp can be baked in as the version. Checking the
+      # version under Settings > Apps then tells you exactly which build is installed.
       - name: Name the build
         id: meta
         run: |
           set -euo pipefail
           stamp="$(date -u +'%Y%m%d-%H%M%S')"
-          apk="$(find app/build/outputs/apk/debug -name '*.apk' | head -n1)"
-          cp "$apk" "kids-viewer-${stamp}.apk"
           {
+            echo "stamp=${stamp}"
             echo "tag=build-${stamp}"
             echo "name=Kids Photo Viewer $(date -u +'%Y-%m-%d %H:%M UTC')"
             echo "apk=kids-viewer-${stamp}.apk"
           } >> "$GITHUB_OUTPUT"
+
+      - name: Build debug APK
+        env:
+          BUILD_STAMP: ${{ steps.meta.outputs.stamp }}
+          BUILD_NUMBER: ${{ github.run_number }}
+        run: ./gradlew assembleDebug --stacktrace
+
+      - name: Collect APK
+        run: |
+          set -euo pipefail
+          apk="$(find app/build/outputs/apk/debug -name '*.apk' | head -n1)"
+          cp "$apk" "${{ steps.meta.outputs.apk }}"
 
       - name: Upload APK as build artifact
         uses: actions/upload-artifact@v4
