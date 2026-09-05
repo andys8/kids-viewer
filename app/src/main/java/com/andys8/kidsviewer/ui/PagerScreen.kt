@@ -120,8 +120,16 @@ fun PagerScreen(items: List<MediaItem>) {
     var slideshow by rememberSaveable { mutableStateOf(false) }
     var cornerHeld by remember { mutableStateOf(false) }
     var switchArmed by remember { mutableStateOf(false) }
+    var switchUsed by remember { mutableStateOf(false) }
     var switchCount by remember { mutableIntStateOf(0) }
     var confirmVisible by remember { mutableStateOf(false) }
+
+    // One switch per press, however long the press lasts. Without this, a held finger that
+    // drifts across the edge of the corner re-arms the gesture and switches straight back --
+    // which is why holding announced one mode and then the other.
+    LaunchedEffect(pointersDown == 0) {
+        if (pointersDown == 0) switchUsed = false
+    }
 
     /*
      * Switching modes is one finger held in the top-left corner. A single touch is the point:
@@ -132,22 +140,24 @@ fun PagerScreen(items: List<MediaItem>) {
      * The label fades in partway through the hold, before the switch commits, so it is obvious
      * the gesture is registering rather than being ignored.
      */
-    LaunchedEffect(cornerHeld) {
-        if (!cornerHeld) {
+    LaunchedEffect(cornerHeld, switchUsed) {
+        if (!cornerHeld || switchUsed) {
             switchArmed = false
             return@LaunchedEffect
         }
         delay(SWITCH_FEEDBACK_MS)
         switchArmed = true
         delay(SWITCH_HOLD_MS - SWITCH_FEEDBACK_MS)
+        // Settle everything together, so the label never blinks between armed and confirmed.
         slideshow = !slideshow
+        switchUsed = true
+        confirmVisible = true
         switchArmed = false
         switchCount++
     }
 
     LaunchedEffect(switchCount) {
         if (switchCount == 0) return@LaunchedEffect
-        confirmVisible = true
         delay(MODE_INDICATOR_MS)
         confirmVisible = false
     }
