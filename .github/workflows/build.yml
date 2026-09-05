@@ -38,6 +38,11 @@ jobs:
       - name: Build debug APK
         run: ./gradlew assembleDebug --stacktrace
 
+      # No keystore here, so this falls back to the debug key. It exists to
+      # catch breakage in the release path before a Play release is attempted.
+      - name: Check the release bundle still builds
+        run: ./gradlew bundleRelease --stacktrace
+
       - name: Name the build
         id: meta
         run: |
