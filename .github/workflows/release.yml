@@ -72,8 +72,8 @@ jobs:
 
       - name: Build signed bundle and APK
         env:
-          APP_VERSION_CODE: ${{ steps.version.outputs.code }}
-          APP_VERSION_NAME: ${{ steps.version.outputs.name }}
+          BUILD_NUMBER: ${{ steps.version.outputs.code }}
+          BUILD_STAMP: ${{ steps.version.outputs.name }}
           KEYSTORE_PATH: ${{ runner.temp }}/upload.jks
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}

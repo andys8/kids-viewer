@@ -17,10 +17,12 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import com.andys8.kidsviewer.data.MediaAccess
 import com.andys8.kidsviewer.data.MediaRepository
 import com.andys8.kidsviewer.ui.KidsViewerApp
@@ -32,6 +34,9 @@ private const val KEY_PERMISSION_ASKED = "permission_asked"
 
 /** Long enough for pinning (and any confirmation dialog) to actually take effect. */
 private const val PINNING_CHECK_DELAY_MS = 2500L
+
+/** Long enough to let a reveal swipe finish, short enough that the bars don't linger. */
+private const val BARS_REHIDE_INTERVAL_MS = 1000L
 
 class MainActivity : ComponentActivity() {
 
@@ -64,6 +69,7 @@ class MainActivity : ComponentActivity() {
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         WindowCompat.setDecorFitsSystemWindows(window, false)
         enableImmersiveMode()
+        keepSystemBarsHidden()
 
         requestAccessIfNeeded()
 
@@ -124,6 +130,27 @@ class MainActivity : ComponentActivity() {
         controller.hide(WindowInsetsCompat.Type.systemBars())
         controller.systemBarsBehavior =
             WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+    }
+
+    /**
+     * A swipe from the edge reveals translucent system bars over the photo, and they linger.
+     * Android gives an app no way to refuse that gesture, so the next best thing is to put the
+     * bars straight back.
+     *
+     * This re-asserts on a timer rather than reacting to an event, deliberately: transient bars
+     * are drawn *over* the app without altering its insets — that is the whole point of them, so
+     * that the layout doesn't shift — which means an insets listener is never told they appeared.
+     * Re-hiding costs nothing when the bars are already hidden.
+     */
+    private fun keepSystemBarsHidden() {
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.RESUMED) {
+                while (true) {
+                    delay(BARS_REHIDE_INTERVAL_MS)
+                    enableImmersiveMode()
+                }
+            }
+        }
     }
 
     /**

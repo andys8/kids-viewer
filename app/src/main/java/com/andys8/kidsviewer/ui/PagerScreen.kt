@@ -9,6 +9,7 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
@@ -62,17 +63,41 @@ fun PagerScreen(items: List<MediaItem>) {
         onDispose { player.release() }
     }
 
+    // Always step on from the page the user is actually on, so a report that arrives mid-swipe
+    // can never send them off in the direction they just swiped away from.
     val advanceToNext: () -> Unit = {
-        val next = (pagerState.settledPage + 1) % items.size
+        val next = (pagerState.currentPage + 1) % items.size
         scope.launch { pagerState.animateScrollToPage(page = next, animationSpec = AdvanceAnimation) }
     }
+
+    /**
+     * The player reports STATE_ENDED for an emptied playlist too, not just for a video that
+     * played to its end — and swiping off a video empties it. So a report only counts as
+     * "finished" while the video it belongs to is still the one on screen.
+     */
+    val currentVideoIsPlaying: () -> Boolean = {
+        val current = items.getOrNull(pagerState.currentPage)
+        current != null &&
+            current.isVideo &&
+            player.currentMediaItem?.mediaId == current.id.toString()
+    }
+
+    // The id of the video actually seen playing. An end report is only believable for a video
+    // that reached READY first, which rules out a stale report from the clip just swiped away.
+    val playedMediaId = remember { mutableStateOf<String?>(null) }
 
     DisposableEffect(player, items) {
         val listener = object : Player.Listener {
             // A finished video moves on just like a photo does, so the slideshow keeps flowing
             // instead of repeating the same clip. A lone video has nowhere to go, so it replays.
             override fun onPlaybackStateChanged(playbackState: Int) {
+                if (playbackState == Player.STATE_READY) {
+                    playedMediaId.value = player.currentMediaItem?.mediaId
+                    return
+                }
                 if (playbackState != Player.STATE_ENDED) return
+                if (!currentVideoIsPlaying()) return
+                if (playedMediaId.value != player.currentMediaItem?.mediaId) return
                 if (items.size <= 1) {
                     player.seekTo(0L)
                     player.play()
@@ -83,7 +108,7 @@ fun PagerScreen(items: List<MediaItem>) {
 
             // Skip past anything that can't be decoded instead of sitting on a placeholder.
             override fun onPlayerError(error: PlaybackException) {
-                if (items.size > 1) advanceToNext()
+                if (items.size > 1 && currentVideoIsPlaying()) advanceToNext()
             }
         }
         player.addListener(listener)
@@ -108,7 +133,14 @@ fun PagerScreen(items: List<MediaItem>) {
     LaunchedEffect(pagerState.currentPage, items) {
         val item = items.getOrNull(pagerState.currentPage)
         if (item != null && item.isVideo) {
-            player.setMediaItem(Media3Item.fromUri(item.uri))
+            // Tag the item with its own id, rather than relying on what fromUri() defaults the
+            // media id to, so "is this still the video on screen?" is answerable later.
+            player.setMediaItem(
+                Media3Item.Builder()
+                    .setUri(item.uri)
+                    .setMediaId(item.id.toString())
+                    .build()
+            )
             player.prepare()
             player.play()
         } else {

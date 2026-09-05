@@ -182,7 +182,7 @@ release. So for the very first one:
 ```bash
 KEYSTORE_PATH=/path/to/upload.jks \
 KEYSTORE_PASSWORD=... KEY_ALIAS=upload KEY_PASSWORD=... \
-APP_VERSION_CODE=1 APP_VERSION_NAME=1.0 \
+BUILD_NUMBER=1 BUILD_STAMP=1.0 \
 ./gradlew bundleRelease
 ```
 

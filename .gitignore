@@ -26,6 +26,9 @@ render.experimental.xml
 # Keystore files
 *.jks
 *.keystore
+# ...except the fixed debug key, which every build must share so updates
+# install over the previous one instead of being refused as a different app.
+!app/debug.keystore
 
 # Google Services (e.g. APIs or Firebase)
 google-services.json

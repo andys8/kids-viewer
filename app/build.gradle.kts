@@ -4,12 +4,9 @@ plugins {
     alias(libs.plugins.kotlin.compose)
 }
 
-// CI passes these in; local builds get sensible defaults.
-val appVersionCode = (System.getenv("APP_VERSION_CODE") ?: "1").toInt()
-val appVersionName = System.getenv("APP_VERSION_NAME") ?: "1.0.$appVersionCode"
-
-// Only present when the release keystore secrets are available (CI, or a local
-// release build). Without them, release builds fall back to the debug key.
+// Only present when the release keystore secrets are available (the Play Store
+// release workflow, or a local release build). Without them, release builds
+// fall back to the debug key.
 val keystorePath: String? = System.getenv("KEYSTORE_PATH")
 
 android {
@@ -20,11 +17,23 @@ android {
         applicationId = "com.andys8.kidsviewer"
         minSdk = 26
         targetSdk = 36
-        versionCode = appVersionCode
-        versionName = appVersionName
+        // CI supplies these so each build is a real update with a version you can read back
+        // under Settings > Apps. Local builds fall back to a placeholder.
+        versionCode = (System.getenv("BUILD_NUMBER") ?: "1").toInt()
+        versionName = System.getenv("BUILD_STAMP") ?: "dev"
     }
 
     signingConfigs {
+        getByName("debug") {
+            // A fixed debug key, checked in on purpose. Without it every CI run generates a new
+            // one, and Android refuses to install a build signed with a different key over the
+            // previous install. Debug-only and not a secret: the password is the Android default.
+            storeFile = file("debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
+
         if (keystorePath != null) {
             create("release") {
                 storeFile = file(keystorePath)
