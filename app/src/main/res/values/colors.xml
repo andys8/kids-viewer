@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Shown while a video is being decoded, instead of a black gap. -->
-    <color name="placeholder">#141414</color>
+    <!-- Matches PlaceholderColor in VideoPlaceholder.kt, so the player shutter and the Compose
+         placeholder are the same grey and no seam shows between them. -->
+    <color name="placeholder">#1B1B1B</color>
 </resources>

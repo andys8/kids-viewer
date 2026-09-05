@@ -161,7 +161,11 @@ fun PagerScreen(items: List<MediaItem>) {
     ) { page ->
         val item = items[page]
         if (item.isVideo) {
-            VideoPage(player = player, attached = page == pagerState.settledPage)
+            VideoPage(
+                item = item,
+                player = player,
+                attached = page == pagerState.settledPage
+            )
         } else {
             ImagePage(item = item)
         }
