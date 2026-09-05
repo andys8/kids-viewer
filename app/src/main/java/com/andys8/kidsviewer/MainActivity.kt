@@ -14,6 +14,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
@@ -32,6 +33,9 @@ private const val KEY_PERMISSION_ASKED = "permission_asked"
 
 /** Long enough for pinning (and any confirmation dialog) to actually take effect. */
 private const val PINNING_CHECK_DELAY_MS = 2500L
+
+/** Long enough to let a reveal swipe finish, short enough that the bars don't linger. */
+private const val BARS_REHIDE_DELAY_MS = 800L
 
 class MainActivity : ComponentActivity() {
 
@@ -64,6 +68,7 @@ class MainActivity : ComponentActivity() {
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         WindowCompat.setDecorFitsSystemWindows(window, false)
         enableImmersiveMode()
+        keepSystemBarsHidden()
 
         requestAccessIfNeeded()
 
@@ -124,6 +129,27 @@ class MainActivity : ComponentActivity() {
         controller.hide(WindowInsetsCompat.Type.systemBars())
         controller.systemBarsBehavior =
             WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+    }
+
+    private val hideSystemBarsAgain = Runnable { enableImmersiveMode() }
+
+    /**
+     * A swipe from the edge reveals translucent system bars over the photo, and they linger.
+     * Android gives no way to refuse that gesture, so the next best thing is to put the bars
+     * straight back: watch for them becoming visible and re-hide them promptly.
+     */
+    private fun keepSystemBarsHidden() {
+        ViewCompat.setOnApplyWindowInsetsListener(window.decorView) { view, insets ->
+            val barsVisible = insets.isVisible(WindowInsetsCompat.Type.statusBars()) ||
+                insets.isVisible(WindowInsetsCompat.Type.navigationBars())
+            if (barsVisible) {
+                // Wait out the swipe itself, so re-hiding doesn't fight the gesture.
+                view.removeCallbacks(hideSystemBarsAgain)
+                view.postDelayed(hideSystemBarsAgain, BARS_REHIDE_DELAY_MS)
+            }
+            // Hand the insets on, so the default policy is left intact.
+            ViewCompat.onApplyWindowInsets(view, insets)
+        }
     }
 
     /**
