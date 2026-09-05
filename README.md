@@ -120,7 +120,7 @@ minification and resource shrinking, verifies the resulting signature with
 
 - the signed APK, named after its version,
 - a `.sha256` checksum file,
-- the R8 `mapping.txt`, so an obfuscated crash report can be read back.
+- the gzipped R8 `mapping.txt`, so an obfuscated crash report can be read back.
 
 Pull requests run the same build and checks but publish nothing.
 
