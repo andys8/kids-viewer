@@ -10,7 +10,6 @@ import kotlinx.coroutines.launch
 
 sealed interface UiState {
     data object Loading : UiState
-    data object PermissionNeeded : UiState
     data object PermissionDenied : UiState
     data object Empty : UiState
     data class Ready(val items: List<MediaItem>) : UiState
@@ -21,33 +20,23 @@ class MainViewModel(private val repository: MediaRepository) : ViewModel() {
     private val _uiState = MutableStateFlow<UiState>(UiState.Loading)
     val uiState: StateFlow<UiState> = _uiState
 
-    private var hasRequestedPermissionOnce = false
+    private var loading = false
 
-    fun onPermissionResult(granted: Boolean) {
-        if (granted) {
-            loadMedia()
-        } else {
+    fun onAccessChanged(hasAccess: Boolean) {
+        if (!hasAccess) {
             _uiState.value = UiState.PermissionDenied
-        }
-    }
-
-    fun requestPermissionIfNeeded(alreadyGranted: Boolean, onRequest: () -> Unit) {
-        if (alreadyGranted) {
-            loadMedia()
             return
         }
-        if (!hasRequestedPermissionOnce) {
-            hasRequestedPermissionOnce = true
-            onRequest()
-        } else {
-            _uiState.value = UiState.PermissionNeeded
-        }
+        if (_uiState.value is UiState.Ready || loading) return
+        loadMedia()
     }
 
     private fun loadMedia() {
+        loading = true
         viewModelScope.launch {
             val items = repository.loadCameraMedia()
             _uiState.value = if (items.isEmpty()) UiState.Empty else UiState.Ready(items)
+            loading = false
         }
     }
 }

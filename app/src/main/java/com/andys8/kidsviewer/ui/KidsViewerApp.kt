@@ -12,9 +12,11 @@ import com.andys8.kidsviewer.UiState
 fun KidsViewerApp(
     uiState: UiState,
     showPinningHelp: Boolean,
+    crashReport: String?,
     onGrantPermission: () -> Unit,
     onOpenSettings: () -> Unit,
-    onDismissPinningHelp: () -> Unit
+    onDismissPinningHelp: () -> Unit,
+    onDismissCrashReport: () -> Unit
 ) {
     Box(
         modifier = Modifier
@@ -23,14 +25,21 @@ fun KidsViewerApp(
     ) {
         when (uiState) {
             is UiState.Loading -> Unit
-            is UiState.PermissionNeeded -> PermissionRationaleScreen(onGrantClick = onGrantPermission)
-            is UiState.PermissionDenied -> PermissionDeniedScreen(onOpenSettingsClick = onOpenSettings)
+            is UiState.PermissionDenied -> PermissionScreen(
+                onGrantClick = onGrantPermission,
+                onOpenSettingsClick = onOpenSettings
+            )
+
             is UiState.Empty -> EmptyLibraryScreen()
             is UiState.Ready -> PagerScreen(items = uiState.items)
         }
 
         if (showPinningHelp) {
             PinningHelpOverlay(onDismiss = onDismissPinningHelp)
+        }
+
+        if (crashReport != null) {
+            CrashReportOverlay(report = crashReport, onDismiss = onDismissCrashReport)
         }
     }
 }

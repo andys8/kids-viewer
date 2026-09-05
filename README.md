@@ -9,8 +9,9 @@ can't accidentally swipe out, edit, or delete anything.
 
 - Shows only photos/videos from the standard camera folder (no screenshots
   or downloads), most recent first.
-- Auto-advances every 4 seconds; swipe left/right to navigate manually.
-- Videos autoplay automatically.
+- Auto-advances every 3 seconds; swipe left/right to navigate manually.
+- Videos autoplay and loop until you swipe to the next item.
+- Keeps the screen on, so the phone never locks while the app is open.
 - Full-screen immersive mode — system bars are hidden.
 - Self-pinning kiosk mode (Android Screen Pinning) so the app locks itself
   down automatically when possible.

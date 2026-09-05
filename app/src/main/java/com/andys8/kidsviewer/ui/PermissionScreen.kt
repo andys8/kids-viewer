@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -18,23 +19,18 @@ import androidx.compose.ui.unit.dp
 import com.andys8.kidsviewer.R
 
 @Composable
-fun PermissionRationaleScreen(onGrantClick: () -> Unit) {
+fun PermissionScreen(onGrantClick: () -> Unit, onOpenSettingsClick: () -> Unit) {
     MessageScreen(
-        title = stringResource(R.string.permission_rationale_title),
-        body = stringResource(R.string.permission_rationale_body),
-        buttonText = stringResource(R.string.permission_grant_button),
-        onButtonClick = onGrantClick
-    )
-}
-
-@Composable
-fun PermissionDeniedScreen(onOpenSettingsClick: () -> Unit) {
-    MessageScreen(
-        title = stringResource(R.string.permission_denied_title),
-        body = stringResource(R.string.permission_denied_body),
-        buttonText = stringResource(R.string.permission_open_settings_button),
-        onButtonClick = onOpenSettingsClick
-    )
+        title = stringResource(R.string.permission_title),
+        body = stringResource(R.string.permission_body)
+    ) {
+        Button(onClick = onGrantClick) {
+            Text(stringResource(R.string.permission_grant_button))
+        }
+        TextButton(onClick = onOpenSettingsClick) {
+            Text(stringResource(R.string.permission_open_settings_button), color = Color.White)
+        }
+    }
 }
 
 @Composable
@@ -49,8 +45,7 @@ fun EmptyLibraryScreen() {
 private fun MessageScreen(
     title: String,
     body: String,
-    buttonText: String? = null,
-    onButtonClick: (() -> Unit)? = null
+    actions: @Composable () -> Unit = {}
 ) {
     Column(
         modifier = Modifier
@@ -73,10 +68,6 @@ private fun MessageScreen(
             textAlign = TextAlign.Center,
             modifier = Modifier.padding(top = 16.dp, bottom = 24.dp)
         )
-        if (buttonText != null && onButtonClick != null) {
-            Button(onClick = onButtonClick) {
-                Text(buttonText)
-            }
-        }
+        actions()
     }
 }
