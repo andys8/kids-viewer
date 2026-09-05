@@ -9,7 +9,7 @@ plugins {
  * build, or a fork without the secrets -- release builds fall back to the checked-in debug key
  * so the build never breaks; the workflow says which key a build was signed with.
  */
-val releaseKeystore: String? = System.getenv("KEYSTORE_PATH")
+val releaseKeystore: String? = System.getenv("KEYSTORE_PATH")?.takeIf { it.isNotBlank() }
 
 android {
     namespace = "com.andys8.kidsviewer"
