@@ -1,5 +1,7 @@
 package com.andys8.kidsviewer.ui
 
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.pager.HorizontalPager
@@ -25,6 +27,15 @@ import kotlinx.coroutines.launch
 import androidx.media3.common.MediaItem as Media3Item
 
 private const val AUTO_ADVANCE_DELAY_MS = 3000L
+
+/**
+ * A slow ease-in-out glide reads as far smoother for an unattended slideshow than the pager's
+ * default spring, which snaps quickly and abruptly.
+ */
+private const val AUTO_ADVANCE_ANIMATION_MS = 650
+
+/** Compose the neighbouring pages so their photos are decoded before they scroll into view. */
+private const val PRELOADED_NEIGHBOUR_PAGES = 1
 
 @Composable
 fun PagerScreen(items: List<MediaItem>) {
@@ -90,8 +101,10 @@ fun PagerScreen(items: List<MediaItem>) {
         modifier = Modifier
             .fillMaxSize()
             .background(Color.Black),
+        beyondViewportPageCount = PRELOADED_NEIGHBOUR_PAGES,
         pageSpacing = 0.dp,
-        userScrollEnabled = true
+        userScrollEnabled = true,
+        key = { page -> items[page].id }
     ) { page ->
         val item = items[page]
         if (item.isVideo) {
@@ -107,6 +120,12 @@ fun PagerScreen(items: List<MediaItem>) {
         val current = pagerState.settledPage
         if (items.getOrNull(current)?.isVideo != false) return@LaunchedEffect
         delay(AUTO_ADVANCE_DELAY_MS)
-        pagerState.animateScrollToPage((current + 1) % items.size)
+        pagerState.animateScrollToPage(
+            page = (current + 1) % items.size,
+            animationSpec = tween(
+                durationMillis = AUTO_ADVANCE_ANIMATION_MS,
+                easing = FastOutSlowInEasing
+            )
+        )
     }
 }

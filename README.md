@@ -19,13 +19,13 @@ can't accidentally swipe out, edit, or delete anything.
 
 ## Installing on your phone
 
-Every push to this repository automatically builds a debug APK via GitHub
-Actions and publishes it to the **[Releases](../../releases/tag/latest-debug-build)**
-page under the tag `latest-debug-build`. That release is always kept up to
-date with the latest build.
+Every push to `master` automatically builds a debug APK via GitHub Actions
+and publishes it as a **new** timestamped release on the
+**[Releases](../../releases)** page. Older builds are kept, so you can always
+go back to a previous one.
 
-1. On your phone, open the [latest release](../../releases/tag/latest-debug-build)
-   in a browser.
+1. On your phone, open the [Releases page](../../releases) in a browser and
+   pick the newest release at the top.
 2. Tap the `.apk` file to download it.
 3. Open the downloaded file to install. Android may ask you to allow
    "install unknown apps" for your browser the first time — allow it.

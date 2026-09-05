@@ -3,8 +3,8 @@ name: Build APK
 on:
   push:
     branches:
-      - main
       - master
+      - main
       - '**'
   workflow_dispatch: {}
 
@@ -37,27 +37,36 @@ jobs:
       - name: Build debug APK
         run: ./gradlew assembleDebug --stacktrace
 
-      - name: Locate APK
-        id: apk
-        run: echo "path=$(find app/build/outputs/apk/debug -name '*.apk' | head -n1)" >> "$GITHUB_OUTPUT"
+      - name: Name the build
+        id: meta
+        run: |
+          set -euo pipefail
+          stamp="$(date -u +'%Y%m%d-%H%M%S')"
+          apk="$(find app/build/outputs/apk/debug -name '*.apk' | head -n1)"
+          cp "$apk" "kids-viewer-${stamp}.apk"
+          {
+            echo "tag=build-${stamp}"
+            echo "name=Kids Viewer $(date -u +'%Y-%m-%d %H:%M UTC')"
+            echo "apk=kids-viewer-${stamp}.apk"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Upload APK as build artifact
         uses: actions/upload-artifact@v4
         with:
           name: kids-viewer-debug-apk
-          path: ${{ steps.apk.outputs.path }}
+          path: ${{ steps.meta.outputs.apk }}
 
-      - name: Publish rolling release with APK
-        if: github.event_name == 'push'
+      # Each build gets its own release, so previous builds stay installable.
+      - name: Publish release with APK
+        if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: latest-debug-build
-          name: Latest debug build
+          tag_name: ${{ steps.meta.outputs.tag }}
+          name: ${{ steps.meta.outputs.name }}
           body: |
-            Automatically built from commit ${{ github.sha }} on branch `${{ github.ref_name }}`.
+            Built from commit ${{ github.sha }}.
 
-            This is a debug-signed APK meant for installing directly on your own phone.
-            Tap the `.apk` file below to download it, then open it to install
-            (you may need to allow "install unknown apps" for your browser once).
-          prerelease: true
-          files: ${{ steps.apk.outputs.path }}
+            Debug-signed APK for installing directly on your phone: tap the `.apk`
+            file below to download it, then open it to install (you may need to
+            allow "install unknown apps" for your browser once).
+          files: ${{ steps.meta.outputs.apk }}
