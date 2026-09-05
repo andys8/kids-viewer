@@ -9,14 +9,15 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.CornerRadius
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.ContentScale
@@ -26,21 +27,24 @@ import com.andys8.kidsviewer.data.MediaItem
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
-/** Dark grey rather than black, so a video that is still decoding reads as a placeholder. */
-val PlaceholderColor = Color(0xFF1B1B1B)
+/** Black, like every other backdrop in the app, so a placeholder never looks like a grey panel. */
+val PlaceholderColor = Color.Black
 
-private val FrameColor = Color.White.copy(alpha = 0.18f)
-private val FrameInset = 28.dp
-private val FrameCorner = 20.dp
-private val FrameStroke = 2.dp
+private val GlyphColor = Color.White.copy(alpha = 0.32f)
+private val GlyphSize = 72.dp
+private val GlyphStroke = 3.dp
 
 /** Small on purpose: big enough to look right full-screen, small enough to stay cheap. */
 private const val THUMBNAIL_PX = 512
 
 /**
- * Stands in for a video that isn't showing its own pixels yet — while it slides in, and while
- * it decodes its first frame. It shows the video's own poster frame when the system can give us
- * one, and an empty framed rectangle in the meantime, so a swipe never lands on a blank screen.
+ * Stands in for a video that isn't showing its own pixels yet — while it slides in, and while it
+ * decodes its first frame.
+ *
+ * The poster frame is the placeholder wherever one is available: scaled the same way the video
+ * is, it lands in exactly the rectangle the video will occupy, whatever the clip's shape. Only
+ * when there is no poster does a small centred play glyph stand in. Nothing is drawn to the edges
+ * of the screen, because the screen is not the shape of the video.
  */
 @Composable
 fun VideoPlaceholder(item: MediaItem, modifier: Modifier = Modifier) {
@@ -49,29 +53,46 @@ fun VideoPlaceholder(item: MediaItem, modifier: Modifier = Modifier) {
         if (value == null) value = VideoThumbnails.load(context, item)
     }
 
-    Box(modifier = modifier.fillMaxSize().background(PlaceholderColor)) {
-        Canvas(modifier = Modifier.fillMaxSize()) {
-            val inset = FrameInset.toPx()
-            drawRoundRect(
-                color = FrameColor,
-                topLeft = Offset(inset, inset),
-                size = androidx.compose.ui.geometry.Size(
-                    width = size.width - inset * 2,
-                    height = size.height - inset * 2
-                ),
-                cornerRadius = CornerRadius(FrameCorner.toPx()),
-                style = Stroke(width = FrameStroke.toPx())
-            )
-        }
-
-        thumbnail?.let {
+    Box(
+        modifier = modifier.fillMaxSize().background(PlaceholderColor),
+        contentAlignment = Alignment.Center
+    ) {
+        val poster = thumbnail
+        if (poster != null) {
             Image(
-                bitmap = it,
+                bitmap = poster,
                 contentDescription = null,
                 contentScale = ContentScale.Fit,
                 modifier = Modifier.fillMaxSize()
             )
+        } else {
+            PlayGlyph()
         }
+    }
+}
+
+/** A plain play mark: a ring with a triangle whose centre of area sits on the ring's centre. */
+@Composable
+private fun PlayGlyph() {
+    Canvas(modifier = Modifier.size(GlyphSize)) {
+        val stroke = GlyphStroke.toPx()
+        val radius = size.minDimension / 2f
+        val middle = center
+
+        drawCircle(
+            color = GlyphColor,
+            radius = radius - stroke / 2f,
+            center = middle,
+            style = Stroke(width = stroke)
+        )
+
+        val triangle = Path().apply {
+            moveTo(middle.x - radius * 0.26f, middle.y - radius * 0.45f)
+            lineTo(middle.x - radius * 0.26f, middle.y + radius * 0.45f)
+            lineTo(middle.x + radius * 0.52f, middle.y)
+            close()
+        }
+        drawPath(path = triangle, color = GlyphColor)
     }
 }
 
