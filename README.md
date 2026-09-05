@@ -15,6 +15,12 @@ delete your pictures.
   through once and then move on. Swipe left/right to navigate manually.
 - Hold a finger on the screen to keep the current photo or video up; the
   slideshow carries on when you let go.
+- Two modes, switched by holding **three fingers** on the screen for about
+  a second and a half. There is no button or menu, so a toddler can't
+  reach it; a brief label confirms the mode you switched to.
+  - **Slideshow** (default) — advances by itself.
+  - **Swipe only** — nothing advances on its own and videos loop, so a
+    photo stays up until someone swipes.
 - Plays high-frame-rate 4K footage smoothly, with display frame-rate
   matching and HDR output.
 - Keeps the screen on, so the phone never locks while the app is open.

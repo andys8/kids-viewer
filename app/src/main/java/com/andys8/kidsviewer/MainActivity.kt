@@ -4,6 +4,7 @@ import android.app.ActivityManager
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import android.view.WindowManager
@@ -68,6 +69,7 @@ class MainActivity : ComponentActivity() {
 
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         WindowCompat.setDecorFitsSystemWindows(window, false)
+        drawBehindDisplayCutout()
         enableImmersiveMode()
         keepSystemBarsHidden()
 
@@ -126,10 +128,25 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun enableImmersiveMode() {
-        val controller = WindowInsetsControllerCompat(window, window.decorView)
+        val controller = WindowCompat.getInsetsController(window, window.decorView)
         controller.hide(WindowInsetsCompat.Type.systemBars())
         controller.systemBarsBehavior =
             WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+    }
+
+    /**
+     * Lets the window draw underneath the camera cutout instead of being held clear of it.
+     * Without this the system keeps the app off the cutout strip and fills that band itself,
+     * which looks like a grey bar pinned to the top edge — and, since it is not a system bar at
+     * all, hiding the system bars never removes it and rotating only moves it.
+     */
+    private fun drawBehindDisplayCutout() {
+        val mode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
+        } else {
+            WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+        }
+        window.attributes = window.attributes.apply { layoutInDisplayCutoutMode = mode }
     }
 
     /**

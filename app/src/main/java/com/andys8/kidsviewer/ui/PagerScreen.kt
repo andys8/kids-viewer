@@ -3,6 +3,7 @@ package com.andys8.kidsviewer.ui
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
@@ -10,15 +11,19 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -26,6 +31,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
+import com.andys8.kidsviewer.R
 import com.andys8.kidsviewer.data.MediaItem
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -44,6 +50,11 @@ private const val PRELOADED_NEIGHBOUR_PAGES = 1
 
 /** No page is waiting on a finger to lift. */
 private const val NO_PAGE = -1
+
+/** Deliberately awkward for small hands: three fingers, held. */
+private const val MODE_SWITCH_POINTERS = 3
+private const val MODE_SWITCH_HOLD_MS = 1500L
+private const val MODE_INDICATOR_MS = 1400L
 
 private val AdvanceAnimation = tween<Float>(
     durationMillis = AUTO_ADVANCE_ANIMATION_MS,
@@ -97,8 +108,35 @@ fun PagerScreen(items: List<MediaItem>) {
     // waits rather than being skipped, and moves on once the finger lifts. The page it ended on
     // is remembered, not just the fact that it ended, so that lifting out of a swipe -- which
     // has already moved on -- doesn't advance a second time.
-    var touching by remember { mutableStateOf(false) }
+    var pointersDown by remember { mutableIntStateOf(0) }
+    val touching = pointersDown > 0
     var pageAwaitingRelease by remember { mutableStateOf(NO_PAGE) }
+
+    // Slideshow moves on by itself; swipe-only waits for a swipe and loops the current video.
+    var slideshow by rememberSaveable { mutableStateOf(true) }
+    var switchCount by remember { mutableIntStateOf(0) }
+    var indicatorVisible by remember { mutableStateOf(false) }
+
+    // Three fingers held together: awkward enough that a toddler will not find it by accident,
+    // and nothing is drawn on screen that could be pressed instead.
+    val switchGestureHeld = pointersDown >= MODE_SWITCH_POINTERS
+    LaunchedEffect(switchGestureHeld) {
+        if (!switchGestureHeld) return@LaunchedEffect
+        delay(MODE_SWITCH_HOLD_MS)
+        slideshow = !slideshow
+        switchCount++
+    }
+
+    LaunchedEffect(switchCount) {
+        if (switchCount == 0) return@LaunchedEffect
+        indicatorVisible = true
+        delay(MODE_INDICATOR_MS)
+        indicatorVisible = false
+    }
+
+    LaunchedEffect(slideshow) {
+        player.repeatMode = if (slideshow) Player.REPEAT_MODE_OFF else Player.REPEAT_MODE_ONE
+    }
 
     LaunchedEffect(touching) {
         if (touching) return@LaunchedEffect
@@ -117,12 +155,15 @@ fun PagerScreen(items: List<MediaItem>) {
                     return
                 }
                 if (playbackState != Player.STATE_ENDED) return
+                if (!slideshow) return
                 if (!currentVideoIsPlaying()) return
                 if (playedMediaId.value != player.currentMediaItem?.mediaId) return
                 if (items.size <= 1) {
                     player.seekTo(0L)
                     player.play()
-                } else if (touching) {
+                } else if (pointersDown > 0) {
+                    // Read the live count, not a captured snapshot: this listener outlives the
+                    // composition that created it, so anything captured by value would be stale.
                     pageAwaitingRelease = pagerState.currentPage
                 } else {
                     advanceToNext()
@@ -172,43 +213,56 @@ fun PagerScreen(items: List<MediaItem>) {
         }
     }
 
-    HorizontalPager(
-        state = pagerState,
+    Box(
         modifier = Modifier
             .fillMaxSize()
             .background(Color.Black)
-            // Watch for a finger on the screen without taking the touch: reading events on the
+            // Watch the fingers on the screen without taking the touch: reading events on the
             // Initial pass and never consuming them leaves the pager's own swipe handling
             // completely untouched.
             .pointerInput(Unit) {
                 awaitPointerEventScope {
                     while (true) {
                         val event = awaitPointerEvent(PointerEventPass.Initial)
-                        touching = event.changes.any { it.pressed }
+                        pointersDown = event.changes.count { it.pressed }
                     }
                 }
             },
-        beyondViewportPageCount = PRELOADED_NEIGHBOUR_PAGES,
-        pageSpacing = 0.dp,
-        userScrollEnabled = true,
-        key = { page -> items[page].id }
-    ) { page ->
-        val item = items[page]
-        if (item.isVideo) {
-            VideoPage(
-                item = item,
-                player = player,
-                attached = page == pagerState.settledPage
-            )
-        } else {
-            ImagePage(item = item)
+        contentAlignment = Alignment.Center
+    ) {
+        HorizontalPager(
+            state = pagerState,
+            modifier = Modifier.fillMaxSize(),
+            beyondViewportPageCount = PRELOADED_NEIGHBOUR_PAGES,
+            pageSpacing = 0.dp,
+            userScrollEnabled = true,
+            key = { page -> items[page].id }
+        ) { page ->
+            val item = items[page]
+            if (item.isVideo) {
+                VideoPage(
+                    item = item,
+                    player = player,
+                    attached = page == pagerState.settledPage
+                )
+            } else {
+                ImagePage(item = item)
+            }
         }
+
+        ModeIndicator(
+            label = stringResource(
+                if (slideshow) R.string.mode_slideshow else R.string.mode_swipe_only
+            ),
+            visible = indicatorVisible
+        )
     }
 
     // Photos advance on a timer. Videos have no timer: they advance when they finish playing.
     // Keying on the touch stops the timer while a finger is down and starts a fresh one when it
     // lifts, so holding keeps the photo up for as long as you like.
-    LaunchedEffect(pagerState.settledPage, items, touching) {
+    LaunchedEffect(pagerState.settledPage, items, touching, slideshow) {
+        if (!slideshow) return@LaunchedEffect
         if (touching) return@LaunchedEffect
         if (items.size <= 1) return@LaunchedEffect
         val current = pagerState.settledPage

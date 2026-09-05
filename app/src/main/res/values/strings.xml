@@ -13,6 +13,9 @@
     <string name="pinning_help_body">To stop this app from being swiped away, turn on screen pinning:\n\nSettings → Security → Advanced → Screen pinning → On.\n\nThen open the app-switcher (square button) and tap the pin icon on Kids Photo Viewer.</string>
     <string name="pinning_help_dismiss_button">Got It</string>
 
+    <string name="mode_slideshow">Slideshow</string>
+    <string name="mode_swipe_only">Swipe only</string>
+
     <string name="crash_report_title">Last Crash</string>
     <string name="crash_report_dismiss_button">Dismiss</string>
 </resources>
