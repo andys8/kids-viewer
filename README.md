@@ -11,16 +11,15 @@ delete your pictures.
 
 - Shows only photos/videos from the standard camera folder (no screenshots
   or downloads), most recent first.
-- Runs as a continuous slideshow: photos show for 3 seconds, videos play
-  through once and then move on. Swipe left/right to navigate manually.
-- Hold a finger on the screen to keep the current photo or video up; the
-  slideshow carries on when you let go.
 - Two modes, switched by holding **three fingers** on the screen for about
   a second and a half. There is no button or menu, so a toddler can't
   reach it; a brief label confirms the mode you switched to.
-  - **Slideshow** (default) — advances by itself.
-  - **Swipe only** — nothing advances on its own and videos loop, so a
-    photo stays up until someone swipes.
+  - **Slideshow** (default) — photos show for 3 seconds and videos play
+    through once, then it moves on by itself. Swiping is switched off, so
+    there is nothing a child can change. Holding one finger down keeps the
+    current photo or video up for as long as you like.
+  - **Swipe only** — swipe left/right to move; nothing advances on its own
+    and videos loop, so a photo stays up until someone swipes.
 - Plays high-frame-rate 4K footage smoothly, with display frame-rate
   matching and HDR output.
 - Keeps the screen on, so the phone never locks while the app is open.

@@ -235,7 +235,10 @@ fun PagerScreen(items: List<MediaItem>) {
             modifier = Modifier.fillMaxSize(),
             beyondViewportPageCount = PRELOADED_NEIGHBOUR_PAGES,
             pageSpacing = 0.dp,
-            userScrollEnabled = true,
+            // Swiping belongs to swipe-only mode. While the slideshow runs itself there is
+            // nothing for small hands to change: a finger can hold the current item, and
+            // nothing else. Programmatic scrolling is unaffected, so the slideshow still moves.
+            userScrollEnabled = !slideshow,
             key = { page -> items[page].id }
         ) { page ->
             val item = items[page]
