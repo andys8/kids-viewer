@@ -1,0 +1,143 @@
+# Subjects for the bundled picture set, one Microsoft Fluent Emoji name per
+# line. The name is the folder under assets/ in the upstream repository:
+# https://github.com/microsoft/fluentui-emoji
+#
+# Blank lines and lines starting with # are ignored. Edit this file to add or
+# drop a picture, then re-run build-pictures.py.
+#
+# Chosen for a toddler: one clear subject, instantly nameable, nothing scary,
+# nothing that needs reading. No faces of people, no flags, no symbols.
+
+# --- Animals ---------------------------------------------------------------
+Lion
+Tiger
+Elephant
+Giraffe
+Zebra
+Monkey
+Panda
+Koala
+Penguin
+Dolphin
+Whale
+Turtle
+Frog
+Butterfly
+Lady beetle
+Honeybee
+Snail
+Owl
+Duck
+Baby chick
+Cow
+Pig
+Ewe
+Horse
+Dog face
+Cat face
+Rabbit face
+Mouse face
+Bear
+Fox
+Hedgehog
+Chipmunk
+Crocodile
+Octopus
+Tropical fish
+Crab
+Parrot
+Peacock
+Flamingo
+Swan
+Rooster
+Goat
+Camel
+Kangaroo
+Sloth
+Otter
+Unicorn
+Hippopotamus
+Rhinoceros
+Deer
+Seal
+Bird
+
+# --- Things that go --------------------------------------------------------
+Fire engine
+Police car
+Ambulance
+Bus
+Tractor
+Taxi
+Automobile
+Airplane
+Helicopter
+Rocket
+Sailboat
+Ship
+Bicycle
+Locomotive
+Tram
+Delivery truck
+Motor scooter
+
+# --- Food ------------------------------------------------------------------
+Red apple
+Banana
+Strawberry
+Watermelon
+Grapes
+Carrot
+Ice cream
+Birthday cake
+Cookie
+Lollipop
+Cherries
+Pineapple
+Broccoli
+Tangerine
+
+# --- Sky, weather and growing things ---------------------------------------
+Sun
+Rainbow
+Cloud
+Snowflake
+Star
+Crescent moon
+Sunflower
+Tulip
+Cherry blossom
+Deciduous tree
+Palm tree
+Cactus
+Four leaf clover
+Mushroom
+Maple leaf
+
+# --- Toys and everyday things ----------------------------------------------
+Soccer ball
+Basketball
+Balloon
+Teddy bear
+Kite
+Party popper
+Umbrella
+House
+Castle
+Snowman
+Christmas tree
+Wrapped gift
+Alarm clock
+Bell
+Crayon
+Light bulb
+Camera
+Books
+
+# --- Music -----------------------------------------------------------------
+Musical keyboard
+Guitar
+Drum
+Trumpet
+Saxophone
+Violin

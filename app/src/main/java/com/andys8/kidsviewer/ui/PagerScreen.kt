@@ -3,12 +3,8 @@ package com.andys8.kidsviewer.ui
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.awaitEachGesture
-import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.runtime.Composable
@@ -24,7 +20,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -38,7 +33,6 @@ import com.andys8.kidsviewer.R
 import com.andys8.kidsviewer.data.MediaItem
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withTimeoutOrNull
 import androidx.media3.common.MediaItem as Media3Item
 
 private const val AUTO_ADVANCE_DELAY_MS = 3000L
@@ -51,13 +45,6 @@ private const val AUTO_ADVANCE_ANIMATION_MS = 650
 
 /** Compose the neighbouring pages so their photos are decoded before they scroll into view. */
 private const val PRELOADED_NEIGHBOUR_PAGES = 1
-
-/** Hold the top-left corner this long to switch modes. */
-private const val SWITCH_HOLD_MS = 2000L
-private const val MODE_INDICATOR_MS = 1400L
-
-/** Generous enough to hit deliberately, small enough to stay out of the way. */
-private val SWITCH_TARGET_SIZE = 140.dp
 
 private val AdvanceAnimation = tween<Float>(
     durationMillis = AUTO_ADVANCE_ANIMATION_MS,
@@ -110,20 +97,7 @@ fun PagerScreen(items: List<MediaItem>) {
     // Swipe-only to begin with: nothing moves until somebody asks it to.
     var slideshow by rememberSaveable { mutableStateOf(false) }
 
-    /*
-     * What the label says is written once, by the switch that caused it, and never recomputed.
-     * Deriving it from the current mode is what made it contradict itself: any later evaluation
-     * could render different text than the one the gesture had announced.
-     */
-    var labelSaysSlideshow by remember { mutableStateOf(false) }
-    var labelVisible by remember { mutableStateOf(false) }
-    var switchCount by remember { mutableIntStateOf(0) }
-
-    LaunchedEffect(switchCount) {
-        if (switchCount == 0) return@LaunchedEffect
-        delay(MODE_INDICATOR_MS)
-        labelVisible = false
-    }
+    var announcement by remember { mutableIntStateOf(0) }
 
     LaunchedEffect(slideshow) {
         player.repeatMode = if (slideshow) Player.REPEAT_MODE_OFF else Player.REPEAT_MODE_ONE
@@ -222,42 +196,19 @@ fun PagerScreen(items: List<MediaItem>) {
             }
         }
 
-        /*
-         * The mode switch: hold this invisible corner target. The whole gesture lives in one
-         * coroutine that begins on touch-down and ends when the finger lifts, so exactly one
-         * switch per press falls out of the structure -- there is no state to get out of step
-         * and no boundary for a drifting finger to cross, because the target itself is the hit
-         * area. Nothing is consumed, so a swipe starting here still swipes.
-         */
-        Box(
-            modifier = Modifier
-                .align(Alignment.TopStart)
-                .size(SWITCH_TARGET_SIZE)
-                .pointerInput(Unit) {
-                    awaitEachGesture {
-                        awaitFirstDown(requireUnconsumed = false)
-
-                        val liftedEarly = withTimeoutOrNull(SWITCH_HOLD_MS) {
-                            waitForUpOrCancellation()
-                            true
-                        }
-                        if (liftedEarly != null) return@awaitEachGesture
-
-                        // The label announces a mode that is already in effect, never one that
-                        // is still being waited for.
-                        slideshow = !slideshow
-                        labelSaysSlideshow = slideshow
-                        labelVisible = true
-                        switchCount++
-                    }
-                }
-        )
+        // Hold the top-left corner to switch between swipe-only and the slideshow. The label
+        // that follows announces a mode that is already in effect, never one still being
+        // waited for.
+        ModeSwitchTarget(modifier = Modifier.align(Alignment.TopStart)) {
+            slideshow = !slideshow
+            announcement++
+        }
 
         ModeIndicator(
             label = stringResource(
-                if (labelSaysSlideshow) R.string.mode_slideshow else R.string.mode_swipe_only
+                if (slideshow) R.string.mode_slideshow else R.string.mode_swipe_only
             ),
-            visible = labelVisible
+            announcement = announcement
         )
     }
 

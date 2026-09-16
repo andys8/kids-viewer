@@ -61,6 +61,12 @@ android {
         }
     }
 
+    // WebP is compressed already. Packing it again costs build time and a little size, and
+    // costs the phone a decompression pass every time a picture is opened.
+    androidResources {
+        noCompress += "webp"
+    }
+
     // A single APK that installs on any device, which is what direct downloads need. There is no
     // native code here, so there is nothing to split on and nothing gained by splitting.
     splits {
