@@ -24,6 +24,7 @@ from __future__ import annotations
 import argparse
 import colorsys
 import math
+import re
 import shutil
 import subprocess
 import sys
@@ -50,6 +51,17 @@ RAW = "https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets"
 # The canvas every picture is drawn on. 1280 is comfortably above the width of
 # a 1440p phone screen, so the art is never upscaled in use.
 CANVAS = 1280
+
+# Rasterise larger than the canvas so every subject is scaled down into place
+# rather than up. It also leaves room for the padding below without costing the
+# art any of its pixels.
+RENDER = 1600
+
+# Grown onto the artboard, and onto every filter region on it, before rendering.
+# Figma writes each effect an explicit region, and the SVG spec makes that a
+# hard clip: several of these assets draw a little outside their own, which is
+# what sliced the bottom off the sun. Four times the worst overflow measured.
+PAD_UNITS = 2.0
 
 # The art's longest edge inside that canvas. The margin keeps every subject the
 # same visual size and stops anything touching the edge of the screen.
@@ -113,14 +125,54 @@ def fetch(name: str) -> Path:
     return path
 
 
+def unclip(svg: str) -> str:
+    """Grow the artboard and every filter region on it by PAD_UNITS.
+
+    A filter's x/y/width/height is a hard clip on its result, and Figma's export
+    sometimes writes one fractionally tighter than the art inside it -- a sliced
+    edge where a shape should curve away. Growing a region only ever reveals
+    more, never less, and the flood in an inner shadow stays masked by the
+    source alpha, so nothing that renders correctly today moves.
+
+    The artboard grows with them because the viewBox is the outer clip, and
+    would otherwise re-cut exactly what the regions just released.
+    """
+    def grow(tag: str) -> str:
+        for name, by in (("x", -PAD_UNITS), ("y", -PAD_UNITS),
+                         ("width", 2 * PAD_UNITS), ("height", 2 * PAD_UNITS)):
+            match = re.search(rf'\b{name}="(-?[\d.]+)"', tag)
+            if match is None:
+                return tag  # not a region we can read; leave it exactly as it is
+            value = float(match.group(1)) + by
+            tag = tag[:match.start()] + f'{name}="{value:g}"' + tag[match.end():]
+        return tag
+
+    def filters(match: re.Match[str]) -> str:
+        tag = match.group(0)
+        # Percentage regions are relative to the shape and already generous.
+        return grow(tag) if 'filterUnits="userSpaceOnUse"' in tag else tag
+
+    svg = re.sub(r"<filter\b[^>]*>", filters, svg)
+
+    view = re.search(r'<svg\b[^>]*\bviewBox="([^"]+)"', svg)
+    if view is None:
+        raise RuntimeError("no viewBox on the root element")
+    x, y, w, h = (float(n) for n in view.group(1).replace(",", " ").split())
+    box = f"{x - PAD_UNITS:g} {y - PAD_UNITS:g} {w + 2 * PAD_UNITS:g} {h + 2 * PAD_UNITS:g}"
+    return svg[:view.start(1)] + box + svg[view.end(1):]
+
+
 def render(chromium: str, svg: Path, out: Path) -> None:
     """Rasterise one vector on transparency, at CANVAS x CANVAS."""
     with tempfile.TemporaryDirectory() as work:
+        padded = Path(work) / svg.name
+        padded.write_text(unclip(svg.read_text(encoding="utf-8")), encoding="utf-8")
+
         page = Path(work) / "page.html"
         page.write_text(
             "<html><style>html,body{margin:0;padding:0;background:transparent}"
-            f"img{{display:block;width:{CANVAS}px;height:{CANVAS}px}}</style>"
-            f'<body><img src="{svg.resolve().as_uri()}"></body></html>',
+            f"img{{display:block;width:{RENDER}px;height:{RENDER}px}}</style>"
+            f'<body><img src="{padded.resolve().as_uri()}"></body></html>',
             encoding="utf-8",
         )
         subprocess.run(
@@ -133,7 +185,7 @@ def render(chromium: str, svg: Path, out: Path) -> None:
                 "--force-device-scale-factor=1",
                 "--default-background-color=00000000",
                 f"--user-data-dir={work}/profile",
-                f"--window-size={CANVAS},{CANVAS}",
+                f"--window-size={RENDER},{RENDER}",
                 f"--screenshot={out}",
                 page.as_uri(),
             ],
@@ -191,6 +243,10 @@ def compose(raw_png: Path, out_webp: Path) -> str:
     box = image.getbbox()
     if box is None:
         raise RuntimeError(f"{raw_png.name} rendered empty")
+    # Art touching the edge of the render was cut by it. The padding means this
+    # cannot happen; failing here keeps it from ever going out unnoticed.
+    if box[0] == 0 or box[1] == 0 or box[2] == image.width or box[3] == image.height:
+        raise RuntimeError(f"{raw_png.name} fills the render canvas and is cut off: {box}")
     art = image.crop(box)
 
     scale = ART / max(art.size)
