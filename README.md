@@ -11,6 +11,9 @@ pictures.
 
 - Shows only photos/videos from the standard camera folder (no screenshots
   or downloads), most recent first.
+- 122 bundled pictures — animals, things that go, food, toys — for when the
+  camera roll has run its course. Held in the app, so they need no photo
+  permission and no network. See [Pictures](#pictures).
 - Two modes — swipe-only and slideshow — switched by a hidden hold in the
   top-left corner. See [The two modes](#the-two-modes).
 - Plays high-frame-rate 4K footage smoothly, with display frame-rate
@@ -93,6 +96,41 @@ It runs itself: photos show for three seconds, videos play through once, and
 then it moves on. Swiping is turned off and nothing a finger does interrupts
 it — no pausing, no skipping. Good for handing the phone to a child who would
 otherwise just mash the screen.
+
+## Pictures
+
+The app also carries 122 pictures of its own: animals, things that go, food,
+fruit, toys, weather. One clear subject per picture on a soft colour, no words
+and nothing to read.
+
+**Press and hold the top-right corner for two seconds** to switch between your
+photos and the pictures, and hold again to switch back. It works the same way
+as the mode switch on the left — unmarked, and too slow to trigger by accident.
+
+- The order is shuffled every single time you switch to them, so it is never
+  the same run twice.
+- Swipe between them, or hold the top-left corner to let them run as a
+  slideshow, exactly as with photos.
+- They need no permission and no network, so they work on a phone where you
+  never granted access to photos at all.
+- Every launch starts back on your photos and videos.
+
+### Regenerating the pictures
+
+The pictures are rendered from [Microsoft Fluent
+Emoji](https://github.com/microsoft/fluentui-emoji) (MIT) and committed, so no
+build ever needs the network. To change the set, edit the subject list and
+re-run the script:
+
+```
+$EDITOR tools/pictures/subjects.txt
+python3 tools/pictures/build-pictures.py
+```
+
+It needs Pillow (`pip install Pillow`) and a Chromium binary, and it rewrites
+`app/src/main/assets/pictures/` — the images, the index the app reads, and
+`tools/pictures/SOURCES.md`. Credits are in
+[`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).
 
 ## Screen pinning / kiosk lock-down
 
