@@ -36,6 +36,9 @@ google-services.json
 # Android Profiling
 *.hprof
 
+# Python bytecode from the picture tooling
+__pycache__/
+
 # Vectors downloaded by tools/pictures/build-pictures.py, kept only to make a
 # re-run cheap. The rendered pictures it produces are committed; these are not.
 tools/pictures/.cache/
